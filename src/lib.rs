@@ -1,40 +1,34 @@
 #![no_std]
 
-use embedded_hal::adc::OneShot;
-
-pub struct MQ6<Adc, Pin> {
-    pub adc: Adc,
-    pub pin: Pin,
-}
-
-impl<Adc, Pin, Word> MQ6<Adc, Pin>
-where
-    Adc: OneShot<Adc, Word, Pin>,
-    Word: Into<u32>,
-{
-    pub fn new(adc: Adc, pin: Pin) -> Self {
-        Self { adc, pin }
-    }
-
-    pub fn read_raw(&mut self) -> Result<u32, Error> {
-        self.adc
-            .read(&mut self.pin)
-            .map(|value| value.into())
-            .map_err(|_| Error::Adc)
-    }
-
-    pub fn read_ppm(&mut self) -> Result<f32, Error> {
-        let raw = self.read_raw()?; // ADC value, usually 0-4095 if 12-bit
-        let voltage = (raw as f32 / 4095.0) * 3.3; // Assuming 3.3V ADC ref
-
-        // Simplified linear-ish formula, real one needs a fucking calibration curve.
-        let ppm = (voltage / 3.3) * 1000.0; // Dummy mapping: 0-3.3V -> 0-1000ppm
-
-        Ok(ppm)
-    }
+pub trait Adc<Pin> {
+    fn read(&mut self, pin: &mut Pin) -> Result<u16, AdcError>;
 }
 
 #[derive(Debug)]
-pub enum Error {
-    Adc,
+pub enum AdcError {
+    ReadError,
+}
+
+pub struct MQ6<ADC, PIN> {
+    pub adc: ADC,
+    pub pin: PIN,
+    pub vref_mv: u32,
+}
+
+impl<ADC, PIN> MQ6<ADC, PIN>
+where
+    ADC: Adc<PIN>,
+{
+    pub fn new(adc: ADC, pin: PIN, vref_mv: u32) -> Self {
+        Self { adc, pin, vref_mv }
+    }
+
+    pub fn read_raw(&mut self) -> Result<u16, AdcError> {
+        self.adc.read(&mut self.pin)
+    }
+
+    pub fn read_voltage_mv(&mut self) -> Result<u32, AdcError> {
+        let raw = self.read_raw()? as u32;
+        Ok((raw * self.vref_mv) / 4095)
+    }
 }
