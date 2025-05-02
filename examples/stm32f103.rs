@@ -6,13 +6,13 @@ use panic_semihosting as _;
 use cortex_m_rt::entry;
 use stm32f1xx_hal::{adc, pac, prelude::*};
 
-use rtt_target::{rprintln, rtt_init, rtt_init_print};
+use rtt_target::{rprintln, rtt_init};
 
 use mq_6::{Adc as Mq6Adc, AdcError, MQ6};
 
 #[entry]
 fn main() -> ! {
-    rtt_init!(); // rprintln! be ready, mate
+    rtt_init!();
 
     let dp = pac::Peripherals::take().unwrap();
     let mut flash = dp.FLASH.constrain();

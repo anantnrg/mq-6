@@ -1,5 +1,7 @@
 #![no_std]
 
+use embedded_hal::digital::v2::{InputPin, OutputPin};
+
 pub trait Adc<Pin> {
     fn read(&mut self, pin: &mut Pin) -> Result<u16, AdcError>;
 }
@@ -17,6 +19,7 @@ pub struct MQ6<ADC, PIN> {
 
 impl<ADC, PIN> MQ6<ADC, PIN>
 where
+    PIN: InputPin,
     ADC: Adc<PIN>,
 {
     pub fn new(adc: ADC, pin: PIN, vref_mv: u32) -> Self {
