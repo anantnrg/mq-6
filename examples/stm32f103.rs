@@ -19,7 +19,6 @@ fn main() -> ! {
     let rcc = dp.RCC.constrain();
     let clocks = rcc.cfgr.adcclk(2.MHz()).freeze(&mut flash.acr);
 
-    // Setup ADC1
     let mut adc1 = adc::Adc::adc1(dp.ADC1, clocks);
 
     // Setup GPIOB
