@@ -5,8 +5,8 @@ use embedded_hal::adc::{Channel, OneShot};
 use nb::block;
 
 #[derive(Debug)]
-pub enum MQ6Error<ADCERR> {
-    Adc(ADCERR),
+pub enum MQ6Error<E> {
+    ReadError(E),
     InvalidR0,
 }
 
@@ -44,15 +44,15 @@ where
     }
 
     pub fn read_voltage_mv(&mut self) -> Result<u32, MQ6Error<ADC::Error>> {
-        let raw = self.read_raw()?;
+        let raw: u32 = self.read_raw()?.into();
         Ok((raw * self.vref_mv) / 4095)
     }
 
-    /// Calculates the Rs value (sensor resistance) using measured voltage
+    /// Calculates Rs, the sensor resistance
     pub fn read_rs(&mut self) -> Result<f32, MQ6Error<ADC::Error>> {
         let vout = self.read_voltage_mv()? as f32;
         if vout == 0.0 {
-            return Ok(f32::INFINITY); // open circuit maybe
+            return Ok(f32::INFINITY);
         }
 
         let vs = self.vref_mv as f32;
@@ -60,8 +60,7 @@ where
         Ok(rs)
     }
 
-    /// Estimate PPM using Rs/R0 ratio with approximation curve
-    /// You must provide R0 (calibrated resistance in clean air)
+    /// Estimate PPM using Rs/R0 ratio
     pub fn read_ppm(&mut self, r0: f32) -> Result<f32, MQ6Error<ADC::Error>> {
         if r0 <= 0.0 {
             return Err(MQ6Error::InvalidR0);
@@ -70,11 +69,9 @@ where
         let rs = self.read_rs()?;
         let ratio = rs / r0;
 
-        // MQ-6 typical approximation for LPG:
-        // log(ppm) = (log(rs/r0) - b) / m
-        // Curve data: (Rs/R0 vs PPM), from datasheet
-        let a = 1000.0; // arbitrary fitting param
-        let b = -0.47; // slope from datasheet log-log graph (approx)
+        // Approximation based on MQ-6 datasheet curve
+        let a = 1000.0;
+        let b = -0.47;
         let ppm = a * ratio.powf(b);
 
         Ok(ppm)
