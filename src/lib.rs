@@ -1,79 +1,41 @@
 #![no_std]
 
-use core::marker::PhantomData;
-use embedded_hal::adc::{Channel, OneShot};
-use nb::block;
+/// Trait for anything that can give us an ADC value from the MQ-6 sensor.
+pub trait Mq6Adc {
+    type Error;
 
-#[derive(Debug)]
-pub enum MQ6Error<E> {
-    ReadError(E),
-    InvalidR0,
+    /// Read raw ADC value (usually 0–4095)
+    fn read_raw(&mut self) -> Result<u16, Self::Error>;
 }
 
-pub struct MQ6<ADC, PIN, ADCWORD>
-where
-    PIN: Channel<ADC>,
-    ADC: OneShot<ADC, ADCWORD, PIN>,
-    ADCWORD: Into<u32>,
-{
-    adc: ADC,
-    pin: PIN,
-    vref_mv: u32,
-    rl_ohms: f32,
-    _phantom: PhantomData<ADCWORD>,
-}
+/// MQ-6 interpretation logic
+pub struct MQ6;
 
-impl<ADC, PIN, ADCWORD> MQ6<ADC, PIN, ADCWORD>
-where
-    PIN: Channel<ADC>,
-    ADC: OneShot<ADC, ADCWORD, PIN>,
-    ADCWORD: Into<u32>,
-{
-    pub fn new(adc: ADC, pin: PIN, vref_mv: u32, rl_ohms: f32) -> Self {
-        Self {
-            adc,
-            pin,
-            vref_mv,
-            rl_ohms,
-            _phantom: PhantomData,
+impl MQ6 {
+    /// Convert raw ADC value to millivolts
+    pub fn adc_to_mv(adc_value: u16, vref_mv: u32, max_adc: u16) -> u32 {
+        (adc_value as u32 * vref_mv) / max_adc as u32
+    }
+
+    /// Get Rs/RL ratio from measured voltage
+    ///
+    /// Vout = (RL / (RL + Rs)) * Vc
+    /// Rs/RL = ((Vc - Vout) / Vout)
+    pub fn voltage_to_rs_over_rl(voltage_mv: f32, vcc_mv: f32) -> f32 {
+        if voltage_mv == 0.0 {
+            f32::INFINITY
+        } else {
+            (vcc_mv - voltage_mv) / voltage_mv
         }
     }
 
-    pub fn read_raw(&mut self) -> Result<ADCWORD, MQ6Error<ADC::Error>> {
-        block!(self.adc.read(&mut self.pin)).map_err(MQ6Error::ReadError)
-    }
-
-    pub fn read_voltage_mv(&mut self) -> Result<u32, MQ6Error<ADC::Error>> {
-        let raw: u32 = self.read_raw()?.into();
-        Ok((raw * self.vref_mv) / 4095)
-    }
-
-    /// Calculates Rs, the sensor resistance
-    pub fn read_rs(&mut self) -> Result<f32, MQ6Error<ADC::Error>> {
-        let vout = self.read_voltage_mv()? as f32;
-        if vout == 0.0 {
-            return Ok(f32::INFINITY);
-        }
-
-        let vs = self.vref_mv as f32;
-        let rs = self.rl_ohms * (vs - vout) / vout;
-        Ok(rs)
-    }
-
-    /// Estimate PPM using Rs/R0 ratio
-    pub fn read_ppm(&mut self, r0: f32) -> Result<f32, MQ6Error<ADC::Error>> {
-        if r0 <= 0.0 {
-            return Err(MQ6Error::InvalidR0);
-        }
-
-        let rs = self.read_rs()?;
-        let ratio = rs / r0;
-
-        // Approximation based on MQ-6 datasheet curve
-        let a = 1000.0;
-        let b = -0.47;
-        let ppm = a * ratio.powf(b);
-
-        Ok(ppm)
+    /// Convenience: Read voltage in mV from the sensor via an ADC provider
+    pub fn read_voltage_mv<A: Mq6Adc>(
+        adc: &mut A,
+        vref_mv: u32,
+        max_adc: u16,
+    ) -> Result<u32, A::Error> {
+        let raw = adc.read_raw()?;
+        Ok(Self::adc_to_mv(raw, vref_mv, max_adc))
     }
 }

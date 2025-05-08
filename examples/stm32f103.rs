@@ -1,37 +1,56 @@
+#![deny(unsafe_code)]
 #![no_main]
 #![no_std]
-#![deny(unsafe_code)]
 
 use cortex_m_rt::entry;
+use cortex_m_semihosting::hprintln;
 use panic_semihosting as _;
-use stm32f1xx_hal::{adc, pac, prelude::*};
 
-use rtt_target::{rprintln, rtt_init};
+use stm32f1xx_hal::{
+    adc::{Adc, SampleTime},
+    pac,
+    prelude::*,
+};
 
-use mq_6::{AdcError, MQ6};
+use mq_6::{MQ6, Mq6Adc};
+
+struct MyAdc<'a> {
+    adc: &'a mut Adc<pac::ADC1>,
+    pin: &'a mut stm32f1xx_hal::gpio::gpioa::PA0<stm32f1xx_hal::gpio::Analog>,
+}
+
+impl<'a> Mq6Adc for MyAdc<'a> {
+    type Error = ();
+
+    fn read_raw(&mut self) -> Result<u16, Self::Error> {
+        self.adc.read(self.pin).map_err(|_| ())
+    }
+}
 
 #[entry]
 fn main() -> ! {
-    rtt_init!();
-
     let dp = pac::Peripherals::take().unwrap();
     let mut flash = dp.FLASH.constrain();
-    let rcc = dp.RCC.constrain();
+    let mut rcc = dp.RCC.constrain();
+
     let clocks = rcc.cfgr.adcclk(2.MHz()).freeze(&mut flash.acr);
+    let mut gpioa = dp.GPIOA.split();
 
-    let mut adc1 = adc::Adc::adc1(dp.ADC1, clocks);
+    let mut adc = Adc::adc1(dp.ADC1, clocks);
+    adc.set_sample_time(SampleTime::T_239); // max accuracy
 
-    // Setup GPIOB
-    let mut gpiob = dp.GPIOB.split();
-    let mut pb0 = gpiob.pb0.into_analog(&mut gpiob.crl);
+    let mut pin = gpioa.pa0.into_analog(&mut gpioa.crl);
 
-    // Initialize MQ6 sensor
-    let mut mq6 = MQ6::new(adc1, pb0, 3300);
+    let mut my_adc = MyAdc {
+        adc: &mut adc,
+        pin: &mut pin,
+    };
 
     loop {
-        match mq6.read_voltage_mv() {
-            Ok(v) => rprintln!("MQ6 voltage: {} mV", v),
-            Err(_) => rprintln!("Read error!"),
-        }
+        let voltage = MQ6::read_voltage_mv(&mut my_adc, 3300, 4095).unwrap_or(0);
+        let _ = hprintln!("Voltage (mV): {}", voltage);
+
+        let rs_rl = MQ6::voltage_to_rs_over_rl(voltage as f32, 3300.0);
+        let _ = hprintln!("Rs/RL ratio: {:.2}", rs_rl);
     }
 }

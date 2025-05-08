@@ -136,6 +136,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d758ba1b47b00caf47f24925c0074ecb20d6dfcffe7f6d53395c0465674841a"
 
 [[package]]
+name = "libm"
+version = "0.2.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c9627da5196e5d8ed0b0495e61e518847578da83483c37288316d9b2e03a7f72"
+
+[[package]]
 name = "mq-6"
 version = "0.1.0"
 dependencies = [
@@ -143,6 +149,7 @@ dependencies = [
  "cortex-m-rt",
  "cortex-m-semihosting 0.5.0",
  "embedded-hal",
+ "libm",
  "nb 1.1.0",
  "panic-semihosting",
  "rtt-target",
