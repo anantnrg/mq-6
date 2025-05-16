@@ -1,6 +1,5 @@
 #![no_std]
 
-/// Trait for anything that can give us an ADC value from the MQ-6 sensor.
 pub trait Mq6Adc {
     type Error;
 
@@ -8,7 +7,6 @@ pub trait Mq6Adc {
     fn read_raw(&mut self) -> Result<u16, Self::Error>;
 }
 
-/// MQ-6 interpretation logic
 pub struct MQ6;
 
 impl MQ6 {
@@ -18,9 +16,6 @@ impl MQ6 {
     }
 
     /// Get Rs/RL ratio from measured voltage
-    ///
-    /// Vout = (RL / (RL + Rs)) * Vc
-    /// Rs/RL = ((Vc - Vout) / Vout)
     pub fn voltage_to_rs_over_rl(voltage_mv: f32, vcc_mv: f32) -> f32 {
         if voltage_mv == 0.0 {
             f32::INFINITY
