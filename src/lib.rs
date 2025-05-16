@@ -24,7 +24,6 @@ impl MQ6 {
         }
     }
 
-    /// Convenience: Read voltage in mV from the sensor via an ADC provider
     pub fn read_voltage_mv<A: Mq6Adc>(
         adc: &mut A,
         vref_mv: u32,
