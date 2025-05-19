@@ -5,6 +5,7 @@
 use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
 use panic_semihosting as _;
+use rtt_target::rprintln;
 
 use stm32f1xx_hal::{
     adc::{Adc, SampleTime},
@@ -29,6 +30,8 @@ impl<'a> Mq6Adc for MyAdc<'a> {
 
 #[entry]
 fn main() -> ! {
+    rtt_target::rtt_init_print!();
+
     let dp = pac::Peripherals::take().unwrap();
     let mut flash = dp.FLASH.constrain();
     let mut rcc = dp.RCC.constrain();
@@ -48,9 +51,9 @@ fn main() -> ! {
 
     loop {
         let voltage = MQ6::read_voltage_mv(&mut my_adc, 3300, 4095).unwrap_or(0);
-        let _ = hprintln!("Voltage (mV): {}", voltage);
+       rprintln!("Voltage (mV): {}", voltage);
 
         let rs_rl = MQ6::voltage_to_rs_over_rl(voltage as f32, 3300.0);
-        let _ = hprintln!("Rs/RL ratio: {:.2}", rs_rl);
+        rprintln!("Rs/RL ratio: {:.2}", rs_rl);
     }
 }
