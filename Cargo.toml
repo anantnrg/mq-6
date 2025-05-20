@@ -9,12 +9,19 @@ libm = "0.2.13"
 nb = "1.1.0"
 
 [dev-dependencies]
-cortex-m = "0.7"
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7"
-cortex-m-semihosting = "0.5"
-panic-semihosting = "0.5"
-stm32f1xx-hal = { version = "0.10.0", features = ["stm32f103", "rt"] }
+embedded-hal = "0.2.7"
+panic-probe = { version = "0.3" }
+stm32f1xx-hal = { version = "0.10", features = ["stm32f103", "rt"] }
+defmt-rtt = "0.4"
 rtt-target = { version = "0.6.1" }
 
+[dependencies.defmt]
+version = "0.3"
+default-features = false
+features = ["encoding-rzcobs"]
+
 [features]
-default = []
+default = ["defmt-default"]
+defmt-default = []

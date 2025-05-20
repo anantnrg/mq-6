@@ -2,9 +2,9 @@
 #![no_main]
 #![no_std]
 
+use cortex_m::Peripherals as CorePeripherals;
 use cortex_m_rt::entry;
-use cortex_m_semihosting::hprintln;
-use panic_semihosting as _;
+use panic_probe as _;
 use rtt_target::rprintln;
 
 use stm32f1xx_hal::{
@@ -33,6 +33,8 @@ fn main() -> ! {
     rtt_target::rtt_init_print!();
 
     let dp = pac::Peripherals::take().unwrap();
+    let cp = CorePeripherals::take().unwrap();
+
     let mut flash = dp.FLASH.constrain();
     let mut rcc = dp.RCC.constrain();
 
@@ -51,7 +53,7 @@ fn main() -> ! {
 
     loop {
         let voltage = MQ6::read_voltage_mv(&mut my_adc, 3300, 4095).unwrap_or(0);
-       rprintln!("Voltage (mV): {}", voltage);
+        rprintln!("Voltage (mV): {}", voltage);
 
         let rs_rl = MQ6::voltage_to_rs_over_rl(voltage as f32, 3300.0);
         rprintln!("Rs/RL ratio: {:.2}", rs_rl);
