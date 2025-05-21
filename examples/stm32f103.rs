@@ -57,5 +57,7 @@ fn main() -> ! {
 
         let rs_rl = MQ6::voltage_to_rs_over_rl(voltage as f32, 3300.0);
         rprintln!("Rs/RL ratio: {:.2}", rs_rl);
+
+        cortex_m::asm::delay(8_000_000);
     }
 }
