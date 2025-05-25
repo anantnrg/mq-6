@@ -51,11 +51,18 @@ fn main() -> ! {
         pin: &mut pin,
     };
 
+    let mut readings = [0u32; 20];
+    let mut index = 0usize;
+
     loop {
         let voltage = MQ6::read_voltage_mv(&mut my_adc, 3300, 4095).unwrap_or(0);
-        rprintln!("Voltage (mV): {}", voltage);
+        readings[index] = voltage;
+        index = (index + 1) % readings.len();
 
-        let rs_rl = MQ6::voltage_to_rs_over_rl(voltage as f32, 3300.0);
+        let avg_voltage: u32 = readings.iter().sum::<u32>() / readings.len() as u32;
+        rprintln!("Voltage (mV): {}", avg_voltage);
+
+        let rs_rl = MQ6::voltage_to_rs_over_rl(avg_voltage as f32, 3300.0);
         rprintln!("Rs/RL ratio: {:.2}", rs_rl);
 
         cortex_m::asm::delay(8_000_000);
